@@ -56,7 +56,8 @@ LeadFinderAgent = create_agent(
     """
     You are a professional lead finder. 
     Your job is to find leads through Google Places, accessible via the GooglePlacesTool. 
-    Return only the list of found lead url's, along with their address. Do not include any other information or markdown styling in your response.
+    Return only the list of found lead url's, along with their address (do label them as 'url' and 'address'). Do not include any other information or markdown styling in your response.
+    If an address or url from a lead is not available, pick a different lead, or do not include the lead in the list.
     """,
 )
 LeadFinderNode = functools.partial(
@@ -72,7 +73,7 @@ LeadEnricherAgent = create_agent(
     You are a professional lead enricher. Your job is to gather as much relevant lead information from a given website as possible. 
     You will receive a list of url's from leads and their addresses, 
     and use the LeadExtractorTool to gather additional lead data from the provided url's.
-    The enriched lead data must contain the following fields: email, address, title, phone, CEO, company_mission. If any of these fields are not available, mark them "not found".
+    The enriched lead data must contain the following fields: company name, website, email, address, phone, CEO, company_mission. If any of these fields are not available, mark them "not found".
     Do not include any markdown styling in your response.
     """,
 )
