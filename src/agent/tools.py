@@ -31,10 +31,6 @@ firecrawl = FirecrawlApp(api_url="http://host.docker.internal:3002", api_key="te
 #         return firecrawl.map_url(url=url)
 
 
-# TODO: Use below module instead of calling serper API directly.
-# search = GoogleSerperAPIWrapper(type="places", gl="us")
-
-
 class ContactStructure(BaseModel):
     email_address: str
     address: str

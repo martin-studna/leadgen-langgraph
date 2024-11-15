@@ -53,7 +53,11 @@ graph.add_node("call_tool", tool_node)
 LeadFinderAgent = create_agent(
     llm,
     lead_finder_tools,
-    "You are a professional lead finder. Your job is to find leads through Google Places, accessible via the GooglePlacesTool. Return only the list of found lead url's, along with their addresses.",
+    """
+    You are a professional lead finder. 
+    Your job is to find leads through Google Places, accessible via the GooglePlacesTool. 
+    Return only the list of found lead url's, along with their address. Do not include any other information or markdown styling in your response.
+    """,
 )
 LeadFinderNode = functools.partial(
     agent_node, agent=LeadFinderAgent, name="lead_finder"
@@ -64,7 +68,13 @@ graph.add_node("lead_finder", LeadFinderNode)
 LeadEnricherAgent = create_agent(
     llm,
     lead_enricher_tools,
-    "You are a professional lead enricher. Your job is to gather as much relevant lead information from a given website as possible. You will receive a list of url's from leads and their addresses. You will use the LeadExtractorTool to gather additional lead data from the provided url's.",
+    """
+    You are a professional lead enricher. Your job is to gather as much relevant lead information from a given website as possible. 
+    You will receive a list of url's from leads and their addresses, 
+    and use the LeadExtractorTool to gather additional lead data from the provided url's.
+    The enriched lead data must contain the following fields: email, address, title, phone, CEO, company_mission. If any of these fields are not available, mark them "not found".
+    Do not include any markdown styling in your response.
+    """,
 )
 LeadEnricherNode = functools.partial(
     agent_node, agent=LeadEnricherAgent, name="lead_enricher"
