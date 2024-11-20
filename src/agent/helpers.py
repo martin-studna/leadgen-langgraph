@@ -3,7 +3,6 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 
 def create_agent(llm, tools, system_message: str):
-    """Create an agent."""
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -21,7 +20,7 @@ def create_agent(llm, tools, system_message: str):
     prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
     return prompt | llm.bind_tools(tools)
 
-# Helper function to create a node for a given agent
+
 def agent_node(state, agent, name):
     result = agent.invoke(state)
     if isinstance(result, ToolMessage):

@@ -3,9 +3,10 @@ from typing import Annotated, TypedDict
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+
 from langgraph.prebuilt import ToolNode
 from agent.helpers import agent_node, create_agent
-from agent.tools import GooglePlacesTool, LeadExtractorTool
+from agent.tools import LeadFinderTool, LeadExtractorTool
 
 
 class State(TypedDict):
@@ -16,57 +17,37 @@ class State(TypedDict):
 llm = ChatOpenAI(model="gpt-4o-mini", streaming=True)
 
 
-def route_tools(state: State):
-    if isinstance(state, list):
-        ai_message = state[-1]
-    elif messages := state.get("messages", []):
-        ai_message = messages[-1]
-    else:
-        raise ValueError(f"No messages found in input state to tool_edge: {state}")
-    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
-        return "tools"
-    return END
-
-
 def router(state):
     messages = state["messages"]
     last_message = messages[-1]
     if last_message.tool_calls:
         return "call_tool"
-    if "FINAL ANSWER" in last_message.content:
-        return END
     return "continue"
 
 
-# Build graph
-graph = StateGraph(State)
-
 # Tool definitions
-lead_finder_tools = [GooglePlacesTool()]
+lead_finder_tools = [LeadFinderTool()]
 lead_enricher_tools = [LeadExtractorTool()]
 
-tools = lead_finder_tools + lead_enricher_tools
-tool_node = ToolNode(tools)
-graph.add_node("call_tool", tool_node)
+graph = StateGraph(State)
 
 # Lead Finder
-LeadFinderAgent = create_agent(
+lead_finder_agent = create_agent(
     llm,
     lead_finder_tools,
     """
     You are a professional lead finder. 
-    Your job is to find leads through Google Places, accessible via the GooglePlacesTool. 
+    Your job is to find leads through Google Places, accessible via the LeadFinderTool. 
     Return only the list of found lead url's, along with their address (do label them as 'url' and 'address'). Do not include any other information or markdown styling in your response.
     If an address or url from a lead is not available, pick a different lead, or do not include the lead in the list.
     """,
 )
-LeadFinderNode = functools.partial(
-    agent_node, agent=LeadFinderAgent, name="lead_finder"
+lead_finder_node = functools.partial(
+    agent_node, agent=lead_finder_agent, name="lead_finder"
 )
-graph.add_node("lead_finder", LeadFinderNode)
 
 # Lead Enricher
-LeadEnricherAgent = create_agent(
+lead_enricher_agent = create_agent(
     llm,
     lead_enricher_tools,
     """
@@ -77,22 +58,24 @@ LeadEnricherAgent = create_agent(
     Do not include any markdown styling in your response.
     """,
 )
-LeadEnricherNode = functools.partial(
-    agent_node, agent=LeadEnricherAgent, name="lead_enricher"
+lead_enricher_node = functools.partial(
+    agent_node, agent=lead_enricher_agent, name="lead_enricher"
 )
-graph.add_node("lead_enricher", LeadEnricherNode)
+
+# Nodes
+graph.add_node("lead_finder", lead_finder_node)
+graph.add_node("lead_enricher", lead_enricher_node)
+graph.add_node("call_tool", ToolNode(lead_finder_tools + lead_enricher_tools))
 
 # Edges
 graph.add_conditional_edges(
     "lead_finder",
     router,
-    {"continue": "lead_enricher", "call_tool": "call_tool", END: "lead_enricher"},
+    {"continue": "lead_enricher", "call_tool": "call_tool"},
 )
-
 graph.add_conditional_edges(
-    "lead_enricher", router, {"continue": END, "call_tool": "call_tool", END: END}
+    "lead_enricher", router, {"continue": END, "call_tool": "call_tool"}
 )
-
 graph.add_conditional_edges(
     "call_tool",
     lambda x: x["sender"],
@@ -104,3 +87,20 @@ graph.add_edge(START, "lead_finder")
 
 graph = graph.compile()
 graph.name = "Leadgen Graph"
+
+# Uncomment when you want to run the graph locally. If doing so, check the Firecrawl url in tools.py.
+# import asyncio
+
+
+# async def main():
+#     inputs = [
+#         {
+#             "role": "user",
+#             "content": "Niche: Marketing Agency, Location: New York. Provide 3 leads",
+#         }
+#     ]
+#     async for chunk in graph.astream({"messages": inputs}, stream_mode="values"):
+#         chunk["messages"][-1].pretty_print()
+
+
+# asyncio.run(main())

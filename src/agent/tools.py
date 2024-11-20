@@ -5,39 +5,17 @@ from langchain_core.tools import BaseTool
 from firecrawl.firecrawl import FirecrawlApp
 import requests
 
-headers = {"X-API-KEY": os.getenv("SERPER_API_KEY"), "Content-Type": "application/json"}
+# Change to localhost:3002 if running locally
+firecrawl = FirecrawlApp(api_url="http://host.docker.internal:3002", api_key="123")
 
-# Use below when running locally
-# firecrawl = FirecrawlApp(api_url="http://localhost:3002", api_key='test')
-firecrawl = FirecrawlApp(api_url="http://host.docker.internal:3002", api_key="test")
-
-
-# class SiteMapperInput(BaseModel):
-#     url: str = Field(description="Url to map")
+# Uncomment for cloud version
+# firecrawl = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
 
 
-# # Firecrawl Map tool
-# class SiteMapperTool(BaseTool):
-#     name: str = "SiteMapperTool"
-#     description: str = (
-#         "Use this tool to gather all the pages of a given url. Do not include a trailing slash when inputting a url"
-#     )
-#     args_schema: Type[BaseModel] = SiteMapperInput
-
-#     def __run__(self, url: str):
-#         # Check if the url has a trailing slash and remove it
-#         if url[-1] == "/":
-#             url = url[:-1]
-#         return firecrawl.map_url(url=url)
-
-
-class ContactStructure(BaseModel):
-    email_address: str
-    address: str
-    title: str
-    phone: str
-    CEO: str
-    company_mission: str
+serper_headers = {
+    "X-API-KEY": os.getenv("SERPER_API_KEY"),
+    "Content-Type": "application/json",
+}
 
 
 class LeadFinderInput(BaseModel):
@@ -47,10 +25,10 @@ class LeadFinderInput(BaseModel):
     )
 
 
-class GooglePlacesTool(BaseTool):
-    name: str = "GooglePlacesTool"
+class LeadFinderTool(BaseTool):
+    name: str = "LeadFinderTool"
     description: str = (
-        "Find leads via Google Places. Use the query input parameter to search for the niche, and the location for the specific location"
+        "Find leads from Google Places. Use the query input parameter to search for the niche, and the location for the specific location"
     )
     args_schema: Type[BaseModel] = LeadFinderInput
 
@@ -59,10 +37,19 @@ class GooglePlacesTool(BaseTool):
         response = requests.request(
             "POST",
             url="https://google.serper.dev/places",
-            headers=headers,
+            headers=serper_headers,
             json=request_body,
         )
         return response.json()["places"]
+
+
+class ExtractionSchema(BaseModel):
+    email_address: str
+    address: str
+    title: str
+    phone: str
+    CEO: str
+    company_mission: str
 
 
 class LeadExtractorInput(BaseModel):
@@ -70,11 +57,8 @@ class LeadExtractorInput(BaseModel):
 
 
 class LeadExtractorTool(BaseTool):
-    """Extracts lead information from a web page."""
-
     name: str = "LeadExtractor"
     description: str = "A tool for extracting lead information from a given url."
-
     args_schema: Type[BaseModel] = LeadExtractorInput
 
     def _run(self, url: str):
@@ -82,7 +66,7 @@ class LeadExtractorTool(BaseTool):
             url,
             {
                 "formats": ["extract"],
-                "extract": {"schema": ContactStructure.model_json_schema()},
+                "extract": {"schema": ExtractionSchema.model_json_schema()},
             },
         )
         return data
