@@ -12,10 +12,26 @@ from agent.tools import LeadFinderTool, LeadExtractorTool
 class State(TypedDict):
     messages: Annotated[list, add_messages]
     sender: str
+    iteration: int
 
 
 llm = ChatOpenAI(model="gpt-4o-mini", streaming=True)
 
+
+
+def finder_router(state):
+    messages = state["messages"]
+    last_message = messages[-1]
+    
+    
+    
+    if last_message.tool_calls:
+        state["iteration"] += 1
+        return "call_tool"
+    if state["iteration"] < 6:
+        return "call_tool"
+    
+    return "continue"
 
 def router(state):
     messages = state["messages"]
@@ -88,19 +104,24 @@ graph.add_edge(START, "lead_finder")
 graph = graph.compile()
 graph.name = "Leadgen Graph"
 
+image = graph.get_graph().draw_mermaid_png()
+
+with open("graph.png", "wb") as f:
+    f.write(image)
+
 # Uncomment when you want to run the graph locally. If doing so, check the Firecrawl url in tools.py.
-# import asyncio
+import asyncio
 
 
-# async def main():
-#     inputs = [
-#         {
-#             "role": "user",
-#             "content": "Niche: Marketing Agency, Location: New York. Provide 3 leads",
-#         }
-#     ]
-#     async for chunk in graph.astream({"messages": inputs}, stream_mode="values"):
-#         chunk["messages"][-1].pretty_print()
+async def main():
+    inputs = [
+        {
+            "role": "user",
+            "content": "Find factories in czechia which have assembly lines where we could use AI cameras to automate. No cars and automative, Only big companies",
+        }
+    ]
+    async for chunk in graph.astream({"messages": inputs}, stream_mode="values",config={"recursion_limit":20}):
+        chunk["messages"][-1].pretty_print()
 
 
-# asyncio.run(main())
+asyncio.run(main())

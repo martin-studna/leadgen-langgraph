@@ -30,4 +30,5 @@ def agent_node(state, agent, name):
     return {
         "messages": [result],
         "sender": name,
+        "iteration": 0,
     }

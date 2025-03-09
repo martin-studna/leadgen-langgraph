@@ -6,10 +6,10 @@ from firecrawl.firecrawl import FirecrawlApp
 import requests
 
 # Change to localhost:3002 if running locally
-firecrawl = FirecrawlApp(api_url="http://host.docker.internal:3002", api_key="123")
+#firecrawl = FirecrawlApp(api_url="http://host.docker.internal:3002", api_key="123")
 
 # Uncomment for cloud version
-# firecrawl = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
+firecrawl = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
 
 
 serper_headers = {
